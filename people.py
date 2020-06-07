@@ -117,7 +117,7 @@ def update(email, person):
 def delete(email):
     """
     This function deletes a person from the people structure
-    :param lname:   last name of person to delete
+    :param email:   email address of person to delete
     :return:        200 on successful delete, 404 if not found
     """
         # Get the person requested
