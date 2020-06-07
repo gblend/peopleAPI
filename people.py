@@ -1,38 +1,13 @@
 
+from flask import abort, make_response, jsonify
 from datetime import datetime
-from flask import abort, make_response
+from config import db
+from models import Person, PersonSchema
 
+#init schema
+person_schema = PersonSchema()
+people_schema = PersonSchema(many=True)
 
-def get_timestamp():
-    return datetime.now().strftime(("%Y-%m-%d %H:%M:%S"))
-
-# Data to serve with our API
-PEOPLE = {
-    "gabrielilochi@gmail.com": {
-        "fname": "Gabriel",
-        "lname": "Ilochi",
-        "email": "gabrielilochi@gmail.com",
-        "timestamp": get_timestamp()
-    },
-    "chinasaoku@gmail.com": {
-        "fname": "Rosemary",
-        "lname": "Okoro",
-        "email": "chinasaoku@gmail.com",
-        "timestamp": get_timestamp()
-    },
-    "jacuriacad@gmail.com": {
-        "fname": "Jake",
-        "lname": "Obodomechine",
-        "email": "jacuriacad@gmail.com",
-        "timestamp": get_timestamp()
-    },
-    "gblend@gmail.com": {
-        "fname": "Gabriel",
-        "lname": "Ilochi",
-        "email": "gblend@gmail.com",
-        "timestamp": get_timestamp()
-    },
-}
 
 # Create a handler for our read (GET) people
 def read_all():
@@ -40,31 +15,31 @@ def read_all():
     This function responds to a request for /api/people
     with the complete lists of people
 
-    :return:        sorted list of people
+    :return: sorted list of people
     """
-    # Create the list of people from our data
-    return [PEOPLE[key] for key in sorted(PEOPLE.keys())]
 
+    # Create the list of people from our data
+    people = Person.query.order_by(Person.fname).all()
+
+    # Serialize the data for the response
+    return people_schema.jsonify(people)
 
 
 def read_one(email):
-    """
-    This function responds to a request for /api/people/{lname}
-    with one matching person from people
-    :param lname:   last name of person to find
-    :return:        person matching last name
-    """
-    # Does the person exist in people?
-    if email in PEOPLE:
-        person = PEOPLE.get(email)
+    # Get the person requested
+    person = Person.query.filter(Person.email == email).one_or_none()
 
-    # otherwise, nope, not found
+    # Did we find a person?
+    if person is not None:
+
+        # Serialize the data for the response
+        return person_schema.jsonify(person)
+
+    # Otherwise, nope, didn't find that person
     else:
         abort(
             404, "Person with email {email} not found".format(email=email)
         )
-
-    return person
 
 
 def create(person):
@@ -74,28 +49,28 @@ def create(person):
     :param person:  person to create in people structure
     :return:        201 on success, 406 on person exists
     """
-    lname = person.get("lname", None)
-    fname = person.get("fname", None)
-    email = person.get("email", None)
+    lname = person.get("lname")
+    fname = person.get("fname")
+    email = person.get("email")
+    
+    create_person = Person(fname, lname, email)
+        
+    existing_person = Person.query.filter(Person.email == email).one_or_none()
 
-    # Does the person exist already?
-    if email not in PEOPLE and email is not None:
-        PEOPLE[email] = {
-            "lname": lname,
-            "fname": fname,
-            "email": email,
-            "timestamp": get_timestamp(),
-        }
-        # return make_response(
-        #     "{fname} successfully created".format(fname=fname), 201
-        # )
-        return PEOPLE[email]
+    # Can we insert this person?
+    if existing_person is None:
 
-    # Otherwise, they exist, that's an error
+        # Add the person to the database
+        db.session.add(create_person)
+        db.session.commit()
+
+        # Serialize and return the newly created person in the response
+        return person_schema.jsonify(create_person), 201
+
+    # Otherwise, nope, person exists already
     else:
         abort(
-            406,
-            "Person with email {email} already exists".format(email=email)
+            406, "Person with email {email} already exists".format(email=email)
         )
 
 
@@ -106,19 +81,37 @@ def update(email, person):
     :param person:  person to update
     :return:        updated person structure
     """
-    # Does the person exist in people?
-    if email in PEOPLE:
-        PEOPLE[email]["fname"] = person.get("fname")
-        PEOPLE[email]["lname"] = person.get("lname")
-        PEOPLE[email]["timestamp"] = get_timestamp()
+    
+        # Get the person requested from the db into session
+    update_person = Person.query.filter(Person.email == email).one_or_none()
 
-        return PEOPLE[email]
+    # Try to find an existing person with the same name as the update
+    fname = person.get("fname")
+    lname = person.get("lname")
+    email = person.get("email")
 
-    # otherwise, nope, that's an error
-    else:
+    # Are we trying to find a person that does not exist?
+    if update_person is None:
         abort(
             404, "Person with email {email} not found".format(email=email)
         )
+
+    # Otherwise go ahead and update!
+    else:
+
+        # turn the passed in person into a db object
+        update_person.fname = fname
+        update_person.lname = lname
+        update_person.email = email
+
+        # merge the new object into the old and commit it to the db
+        db.session.commit()
+
+        # return updated person in the response
+        data = person_schema.jsonify(person)
+
+        return data, 200
+        
 
 
 def delete(email):
@@ -127,11 +120,16 @@ def delete(email):
     :param lname:   last name of person to delete
     :return:        200 on successful delete, 404 if not found
     """
-    # Does the person to delete exist?
-    if email in PEOPLE:
-        del PEOPLE[email]
+        # Get the person requested
+    person = Person.query.filter(Person.email == email).one_or_none()
+
+    # Did we find a person?
+    if person is not None:
+        db.session.delete(person)
+        db.session.commit()
+        
         return make_response(
-            "{email} successfully deleted".format(email=email), 200
+            "Record with email {email} deleted successfully".format(email=email), 200
         )
 
     # Otherwise, nope, person to delete not found
@@ -139,3 +137,4 @@ def delete(email):
         abort(
             404, "Person with email {email} not found".format(email=email)
         )
+

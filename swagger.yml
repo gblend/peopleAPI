@@ -28,13 +28,17 @@ paths:
               properties:
                 fname:
                   type: "string"
+                  description: First name of the person
                 lname:
                   type: "string"
+                  description: Last name of the person
                 email:
                   type: "string"
+                  description: Email address of the person
                 timestamp:
                   type: "string"
-                
+                  description: Creation/update timestamp of the person
+
     post:
       operationId: people.create
       tags:
@@ -82,12 +86,16 @@ paths:
             properties:
               fname:
                 type: string
+                description: First name of the person to fetch
               lname:
                 type: string
+                description: Last name of the person to fetch
               email:
                 type: string
+                description: Email address of the person to fetch
               timestamp:
                 type: string
+                description: Creation/update timestamp of the person to fetch
 
     put:
       operationId: people.update
@@ -108,14 +116,17 @@ paths:
             properties:
               fname:
                 type: string
+                description: First name of the person to update
               lname:
                 type: string
+                description: Last name of the person to update
               email:
                 type: string
+                description: Email address of the person to update
       responses:
         200:
           description: Successfully updated person in people list
-  
+
     delete:
       operationId: people.delete
       tags:

@@ -53,7 +53,7 @@ ns.model = (function () {
                     }, 3000);
 
                 })
-                .fail(function (val) {
+                .fail(function (xhr, textStatus, errorThrown) {
                     $event_pump.trigger('model_error', [xhr, textStatus, errorThrown]);
                 });
         },
